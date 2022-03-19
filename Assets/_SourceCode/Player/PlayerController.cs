@@ -168,7 +168,7 @@ public class PlayerController : MonoBehaviour
         moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"))) * formData.walkSpeed * speedMultiplier);
         moveDirection.x = moveNorm.x;
         moveDirection.z = moveNorm.z;
-        
+       
         // Apply gravity and jump
         if(jumpFlag) {
             moveDirection.y = formData.jumpStrength;
