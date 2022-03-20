@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class MainMenuManager : MonoBehaviour {
 
     public Canvas mainMenu, optionsMenu, creditsMenu;
+    public bool debug = false;
 
     private void Awake() {
         PauseHandler.canPause = false;
@@ -20,8 +21,12 @@ public class MainMenuManager : MonoBehaviour {
         CanvasManager.cm.GetComponent<Canvas>().enabled = false;
     }
 
-    public void StartGame(string scene = "TestScene") {
-        LoadingScreenManager.ls.LoadNewScene(scene);
+    public void StartGame(string scene) {
+        if (debug) {
+            LoadingScreenManager.ls.LoadNewScene("TestScene");
+        } else {
+            LoadingScreenManager.ls.LoadNewScene(scene);
+        }
         //StartCoroutine(StartGameCo(scene));
     }
 
