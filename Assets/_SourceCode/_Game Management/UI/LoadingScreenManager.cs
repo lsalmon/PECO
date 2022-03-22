@@ -8,6 +8,7 @@ public class LoadingScreenManager : MonoBehaviour {
     public static LoadingScreenManager ls;
 
     public bool loading = false;
+    public bool debug = false;
 
     private Canvas canvas;
 
@@ -29,14 +30,10 @@ public class LoadingScreenManager : MonoBehaviour {
     }
 
     private IEnumerator LoadCoroutine(string newScene) {
-        // Disable pausing and movement
+        // Disable pausing (no movement, PlayerController not loaded yet)
         PauseHandler.canPause = false;
         PauseHandler.paused = true;
         Time.timeScale = 0;
-        try {
-            PlayerController.pc.currentForm = PlayerController.Form.Test;
-            PlayerController.pc.canAct = false;
-        } catch { }
 
         // Activate loading screen
         canvas.enabled = true;
@@ -51,6 +48,12 @@ public class LoadingScreenManager : MonoBehaviour {
 
         // Enable pausing and movement, deactivate loading screen
         try {
+            if (debug) {
+                Debug.Log("Spawn player as a bear");
+                PlayerController.pc.ChangeControlledPawn(PlayerController.Form.Bear);
+            } else {
+                PlayerController.pc.currentForm = PlayerController.Form.Test;
+            }
             PlayerController.pc.canAct = true;
         } catch { }
         CanvasManager.cm.GetComponent<Canvas>().enabled = true;
