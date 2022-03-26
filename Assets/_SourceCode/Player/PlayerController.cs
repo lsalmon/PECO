@@ -17,6 +17,7 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool canAct;
     private float speedMultiplier = 1f;
     public float slideFriction;
+    public float coverDistance = 2f;
 
     // Jumping
     private bool jumpFlag = false;
@@ -35,6 +36,7 @@ public class PlayerController : MonoBehaviour
 
     // Stealth functionality
     [HideInInspector] public bool isSneaking;
+    [HideInInspector] public bool isUndercover;
 
     // Input variables 
     private const float baseSpeed = 12.0f;
@@ -62,6 +64,8 @@ public class PlayerController : MonoBehaviour
             Destroy(gameObject);
         currentForm = Form.Test;
         canAct = true;
+        isUndercover = false;
+        isSneaking = false;
 
         // set controlledPawn
         /*if(controlledPawn == null) {
@@ -127,6 +131,7 @@ public class PlayerController : MonoBehaviour
                 speedMultiplier = 0.5f;
                 CanvasManager.cm.stealthGradient.SetActive(true);
             } else {
+                isUndercover = false;
                 speedMultiplier = 1f;
                 CanvasManager.cm.stealthGradient.SetActive(false);
             }
@@ -168,7 +173,22 @@ public class PlayerController : MonoBehaviour
         moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"))) * formData.walkSpeed * speedMultiplier);
         moveDirection.x = moveNorm.x;
         moveDirection.z = moveNorm.z;
-       
+
+        // Move to cover position if sneaking and close enough to object
+        if(isSneaking && !isUndercover && Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit hit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
+            Vector3 coverPosition = hit.point;
+            coverPosition.y = controlledPawn.transform.position.y;
+            /*
+            // Get size of model to compute (position of cover - size of model)
+            Vector3 coverOffset = controlledPawn.GetComponent<Renderer>().bounds.extents;
+            coverPosition.x -= coverOffset.x;
+            */
+            coverPosition.x -= 0.5f;
+            TeleportPlayer(coverPosition);
+            isUndercover = true;
+            Debug.Log("Player undercover");
+        }
+
         // Apply gravity and jump
         if(jumpFlag) {
             moveDirection.y = formData.jumpStrength;
