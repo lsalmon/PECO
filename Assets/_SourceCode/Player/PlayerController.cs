@@ -37,6 +37,8 @@ public class PlayerController : MonoBehaviour
     // Stealth functionality
     [HideInInspector] public bool isSneaking;
     [HideInInspector] public bool isUndercover;
+    private GameObject coverObj;
+    private Vector3 resetPosition;
 
     // Input variables 
     private const float baseSpeed = 12.0f;
@@ -169,13 +171,9 @@ public class PlayerController : MonoBehaviour
     }
     
     private void Movement() {
-        // Retrieve inputs
-        moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"))) * formData.walkSpeed * speedMultiplier);
-        moveDirection.x = moveNorm.x;
-        moveDirection.z = moveNorm.z;
-
         // Move to cover position if sneaking and close enough to object
         if(isSneaking && !isUndercover && Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit hit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
+            resetPosition = controlledPawn.transform.position;
             Vector3 coverPosition = hit.point;
             coverPosition.y = controlledPawn.transform.position.y;
             /*
@@ -184,50 +182,80 @@ public class PlayerController : MonoBehaviour
             coverPosition.x -= coverOffset.x;
             */
             coverPosition.x -= 0.5f;
+            coverObj = hit.transform.gameObject;
             TeleportPlayer(coverPosition);
             isUndercover = true;
-            Debug.Log("Player undercover");
+            controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.left, hit.normal);
         }
 
-        // Apply gravity and jump
-        if(jumpFlag) {
-            moveDirection.y = formData.jumpStrength;
-            baseJumpY = controlledPawn.transform.position.y;
-            baseAirMomentum = moveDirection;
-            jumpFlag = false;
-            jumpTimer = 0.25f;
-        } else if(!grounded) {
-            // Apply gravity
-            if(moveDirection.y > 0.05f) {
-                if(Input.GetButton("Jump")) {
-                    moveDirection.y -= formData.gravityBase;
-                } else {
-                    moveDirection.y -= formData.gravityShortHop;
-                }
-            } else
-                moveDirection.y -= formData.gravityFalling;
-            if(moveDirection.y < 0)
-                moveDirection.y -= formData.gravityFalling;
-            else if(moveDirection.y > 0.05f && !Input.GetButton("Jump"))
-                moveDirection.y -= formData.gravityShortHop;
-            else
-                moveDirection.y -= formData.gravityBase;
+        // Retrieve inputs
+        float horizontal = Input.GetAxis("Horizontal");
+        float vertical = Input.GetAxis("Vertical");
 
-            // Restrict air momentum
-            if(moveDirection.y < 0.1f && SlideOffSurface()) {
+        // If player is moving away from the cover we un-cover it
+        if (isSneaking && vertical < 0) {
+            isUndercover = false;
+            TeleportPlayer(resetPosition);
+        }
 
-            } else {
-                RedirectAirMomentum();
+        // Special movements when undercover
+        if (isSneaking && isUndercover) {
+            Vector3 rotationPawn = (horizontal > 0) ? Vector3.right : Vector3.left;
+            if (Physics.Raycast(controlledPawn.transform.position, rotationPawn, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
+                controlledPawn.transform.rotation = Quaternion.FromToRotation(rotationPawn, checkHit.normal);
             }
-        } else if(jumpTimer <= 0f && moveDirection.y <= 0.05f) {
-            moveDirection.y = 0;
-        }
-        moveDirection.y = Mathf.Clamp(moveDirection.y, Mathf.Abs(formData.maxFallSpeed) * -1f, 50f);
 
-        // Apply movement
-        pawnController.Move(moveDirection * Time.fixedDeltaTime);
-        if(moveNorm.magnitude > 0.05f)
-            controlledPawn.transform.rotation = Quaternion.Euler(0, Quaternion.RotateTowards(controlledPawn.transform.rotation, Quaternion.LookRotation(moveNorm, Vector3.up), rotationSpeed).eulerAngles.y, 0);
+            Vector3 moveCover = new Vector3(horizontal * formData.walkSpeed * speedMultiplier, 0, 0);
+
+            // Apply movement
+            pawnController.Move(moveCover * Time.fixedDeltaTime);
+        } else {
+            // Convert inputs
+            moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(horizontal, 0, vertical)) * formData.walkSpeed * speedMultiplier);
+            moveDirection.x = moveNorm.x;
+            moveDirection.z = moveNorm.z;
+
+            // Apply gravity and jump
+            if(jumpFlag) {
+                moveDirection.y = formData.jumpStrength;
+                baseJumpY = controlledPawn.transform.position.y;
+                baseAirMomentum = moveDirection;
+                jumpFlag = false;
+                jumpTimer = 0.25f;
+            } else if(!grounded) {
+                // Apply gravity
+                if(moveDirection.y > 0.05f) {
+                    if(Input.GetButton("Jump")) {
+                        moveDirection.y -= formData.gravityBase;
+                    } else {
+                        moveDirection.y -= formData.gravityShortHop;
+                    }
+                } else
+                    moveDirection.y -= formData.gravityFalling;
+                if(moveDirection.y < 0)
+                    moveDirection.y -= formData.gravityFalling;
+                else if(moveDirection.y > 0.05f && !Input.GetButton("Jump"))
+                    moveDirection.y -= formData.gravityShortHop;
+                else
+                    moveDirection.y -= formData.gravityBase;
+
+                // Restrict air momentum
+                if(moveDirection.y < 0.1f && SlideOffSurface()) {
+
+                } else {
+                    RedirectAirMomentum();
+                }
+            } else if(jumpTimer <= 0f && moveDirection.y <= 0.05f) {
+                moveDirection.y = 0;
+            }
+
+            moveDirection.y = Mathf.Clamp(moveDirection.y, Mathf.Abs(formData.maxFallSpeed) * -1f, 50f);
+
+            // Apply movement
+            pawnController.Move(moveDirection * Time.fixedDeltaTime);
+            if(moveNorm.magnitude > 0.05f)
+                controlledPawn.transform.rotation = Quaternion.Euler(0, Quaternion.RotateTowards(controlledPawn.transform.rotation, Quaternion.LookRotation(moveNorm, Vector3.up), rotationSpeed).eulerAngles.y, 0);
+        }
     }
 
     /// <summary>
