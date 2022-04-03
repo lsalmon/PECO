@@ -185,7 +185,9 @@ public class PlayerController : MonoBehaviour
             coverObj = hit.transform.gameObject;
             TeleportPlayer(coverPosition);
             isUndercover = true;
-            controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.left, hit.normal);
+            Vector3 directionVector = hit.normal;
+            directionVector = Quaternion.AngleAxis(90, Vector3.up) * directionVector;
+            controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
         }
 
         // Retrieve inputs
@@ -193,19 +195,20 @@ public class PlayerController : MonoBehaviour
         float vertical = Input.GetAxis("Vertical");
 
         // If player is moving away from the cover we un-cover it
-        if (isSneaking && vertical < 0) {
+        if (isSneaking && isUndercover && vertical < 0) {
             isUndercover = false;
             TeleportPlayer(resetPosition);
         }
 
         // Special movements when undercover
         if (isSneaking && isUndercover) {
-            Vector3 rotationPawn = (horizontal > 0) ? Vector3.right : Vector3.left;
-            if (Physics.Raycast(controlledPawn.transform.position, rotationPawn, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
-                controlledPawn.transform.rotation = Quaternion.FromToRotation(rotationPawn, checkHit.normal);
+            if (Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
+                Vector3 directionVector = checkHit.normal;
+                directionVector = Quaternion.AngleAxis(90 * Mathf.Sign(horizontal), Vector3.up) * directionVector;
+                controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
             }
 
-            Vector3 moveCover = new Vector3(horizontal * formData.walkSpeed * speedMultiplier, 0, 0);
+            Vector3 moveCover = horizontal * formData.walkSpeed * speedMultiplier * Vector3.left;
 
             // Apply movement
             pawnController.Move(moveCover * Time.fixedDeltaTime);
