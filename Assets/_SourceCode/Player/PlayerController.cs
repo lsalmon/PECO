@@ -1,11 +1,15 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Splines;
+using Unity.Mathematics;
 
 public class PlayerController : MonoBehaviour
 {
     public enum Form { Test, Human, Bear };
+    private enum coverType { Dynamic, Spline };
 
     public static PlayerController pc;
 
@@ -42,6 +46,10 @@ public class PlayerController : MonoBehaviour
 
     // Input variables 
     private const float baseSpeed = 12.0f;
+    private coverType cover;
+    private float splinePercentage;
+    private SplineContainer targetSplineContainer;
+    private float currentOffsetSpline;
     public float speed = baseSpeed;
     public float turnSpeed = 2f;
     Vector3 moveDirection;
@@ -171,23 +179,46 @@ public class PlayerController : MonoBehaviour
     }
     
     private void Movement() {
+        RaycastHit hit;
         // Move to cover position if sneaking and close enough to object
-        if(isSneaking && !isUndercover && Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit hit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
-            resetPosition = controlledPawn.transform.position;
-            Vector3 coverPosition = hit.point;
-            coverPosition.y = controlledPawn.transform.position.y;
-            /*
-            // Get size of model to compute (position of cover - size of model)
-            Vector3 coverOffset = controlledPawn.GetComponent<Renderer>().bounds.extents;
-            coverPosition.x -= coverOffset.x;
-            */
-            coverPosition.x -= 0.5f;
-            coverObj = hit.transform.gameObject;
-            TeleportPlayer(coverPosition);
-            isUndercover = true;
-            Vector3 directionVector = hit.normal;
-            directionVector = Quaternion.AngleAxis(90, Vector3.up) * directionVector;
-            controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+        if(isSneaking && !isUndercover && Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out hit, coverDistance, LayerMask.GetMask("Terrain"))) {
+            GameObject targetObject = hit.transform.gameObject;
+            if(targetObject != null) {
+                targetSplineContainer = targetObject.GetComponentInChildren<SplineContainer>();
+                Spline target = targetSplineContainer.Spline;
+                if(target != null) {
+                    using var native = new NativeSpline(target, targetSplineContainer.transform.localToWorldMatrix);
+                    SplineUtility.GetNearestPoint(native, controlledPawn.transform.position, out float3 coverPosition, out float splinePercentage);
+                    Debug.Log("Nearest point on spline "+coverPosition);
+                    coverPosition.y = controlledPawn.transform.position.y;
+                    //coverPosition.x -= 0.5f;
+                    TeleportPlayer(coverPosition);
+                    isUndercover = true;
+                    cover = coverType.Spline;
+                    currentOffsetSpline = 0f;
+                    Vector3 directionVector = hit.normal;
+                    directionVector = Quaternion.AngleAxis(90, Vector3.up) * directionVector;
+                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                    resetPosition = controlledPawn.transform.position;
+                } 
+            } else {
+                resetPosition = controlledPawn.transform.position;
+                Vector3 coverPosition = hit.point;
+                coverPosition.y = controlledPawn.transform.position.y;
+                /*
+                // Get size of model to compute (position of cover - size of model)
+                Vector3 coverOffset = controlledPawn.GetComponent<Renderer>().bounds.extents;
+                coverPosition.x -= coverOffset.x;
+                */
+                coverPosition.x -= 0.5f;
+                coverObj = hit.transform.gameObject;
+                TeleportPlayer(coverPosition);
+                isUndercover = true;
+                Vector3 directionVector = hit.normal;
+                directionVector = Quaternion.AngleAxis(90, Vector3.up) * directionVector;
+                controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                cover = coverType.Dynamic;
+            }
         }
 
         // Retrieve inputs
@@ -202,16 +233,33 @@ public class PlayerController : MonoBehaviour
 
         // Special movements when undercover
         if (isSneaking && isUndercover) {
-            if (Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
-                Vector3 directionVector = checkHit.normal;
-                directionVector = Quaternion.AngleAxis(90 * Mathf.Sign(horizontal), Vector3.up) * directionVector;
-                controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+            if(cover == coverType.Dynamic) {
+                if (Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
+                    Vector3 directionVector = checkHit.normal;
+                    directionVector = Quaternion.AngleAxis(90 * Mathf.Sign(horizontal), Vector3.up) * directionVector;
+                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                }
+
+                Vector3 moveCover = horizontal * formData.walkSpeed * speedMultiplier * Vector3.left;
+
+                // Apply movement
+                pawnController.Move(moveCover * Time.fixedDeltaTime);
+            } else {
+                Spline target = targetSplineContainer.Spline;
+                if(target != null && horizontal != 0f) {
+                    var splineLength = target.GetLength();
+                    // Compute next position relative to the spline
+                    currentOffsetSpline = (currentOffsetSpline + (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength) % 1f;
+
+                    var nextPositionOnSplineLocal = SplineUtility.EvaluatePosition(target, currentOffsetSpline);
+                    nextPositionOnSplineLocal.y = controlledPawn.transform.position.y;
+                    var nextPositionWorld = targetSplineContainer.transform.TransformPoint(nextPositionOnSplineLocal);
+                    nextPositionWorld.y = controlledPawn.transform.position.y;
+                    Vector3 moveCover = nextPositionWorld - controlledPawn.transform.position;
+                    // Apply movement
+                    pawnController.Move(moveCover);
+                }
             }
-
-            Vector3 moveCover = horizontal * formData.walkSpeed * speedMultiplier * Vector3.left;
-
-            // Apply movement
-            pawnController.Move(moveCover * Time.fixedDeltaTime);
         } else {
             // Convert inputs
             moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(horizontal, 0, vertical)) * formData.walkSpeed * speedMultiplier);
