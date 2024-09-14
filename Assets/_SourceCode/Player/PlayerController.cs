@@ -189,16 +189,16 @@ public class PlayerController : MonoBehaviour
                 if(target != null) {
                     using var native = new NativeSpline(target, targetSplineContainer.transform.localToWorldMatrix);
                     SplineUtility.GetNearestPoint(native, controlledPawn.transform.position, out float3 coverPosition, out float splinePercentage);
-                    Debug.Log("Nearest point on spline "+coverPosition);
                     coverPosition.y = controlledPawn.transform.position.y;
-                    //coverPosition.x -= 0.5f;
+
                     TeleportPlayer(coverPosition);
                     isUndercover = true;
                     cover = coverType.Spline;
                     currentOffsetSpline = 0f;
-                    Vector3 directionVector = hit.normal;
-                    directionVector = Quaternion.AngleAxis(90, Vector3.up) * directionVector;
-                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                    // Compute direction from up vector
+                    var tangent = SplineUtility.EvaluateTangent(native, splinePercentage);
+                    Vector3 upDirection = SplineUtility.EvaluateUpVector(native, splinePercentage);
+                    controlledPawn.transform.rotation = Quaternion.LookRotation(tangent, upDirection);
                     resetPosition = controlledPawn.transform.position;
                 } 
             } else {
@@ -249,13 +249,38 @@ public class PlayerController : MonoBehaviour
                 if(target != null && horizontal != 0f) {
                     var splineLength = target.GetLength();
                     // Compute next position relative to the spline
-                    currentOffsetSpline = (currentOffsetSpline + (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength) % 1f;
+                    currentOffsetSpline = (currentOffsetSpline + (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength);
+                    // If closed spline, go back to the beginning of the spline once we reach the end
+                    if(currentOffsetSpline < 0f) {
+                        if(target.Closed) {
+                            currentOffsetSpline = 1f;
+                        } else {
+                            currentOffsetSpline = 0f;
+                        }
+                    }
+                    if(currentOffsetSpline > 1f) {
+                        if(target.Closed) {
+                            currentOffsetSpline = 0f;
+                        } else {
+                            currentOffsetSpline = 1f;
+                        }
+                    }
 
                     var nextPositionOnSplineLocal = SplineUtility.EvaluatePosition(target, currentOffsetSpline);
                     nextPositionOnSplineLocal.y = controlledPawn.transform.position.y;
                     var nextPositionWorld = targetSplineContainer.transform.TransformPoint(nextPositionOnSplineLocal);
                     nextPositionWorld.y = controlledPawn.transform.position.y;
                     Vector3 moveCover = nextPositionWorld - controlledPawn.transform.position;
+
+                    // Compute direction from up vector and tangent
+                    var tangent = SplineUtility.EvaluateTangent(target, currentOffsetSpline);
+                    Vector3 upDirection = SplineUtility.EvaluateUpVector(target, currentOffsetSpline);
+                    Quaternion lookRotation = Quaternion.LookRotation(tangent, upDirection);
+                    if(horizontal < 0f) {
+                        lookRotation *= Quaternion.AngleAxis(180f, Vector3.up);
+                    }
+                    controlledPawn.transform.rotation = lookRotation;
+
                     // Apply movement
                     pawnController.Move(moveCover);
                 }
