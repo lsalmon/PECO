@@ -21,7 +21,7 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool canAct;
     private float speedMultiplier = 1f;
     public float slideFriction;
-    public float coverDistance = 2f;
+    public float coverDistance = 1f;
 
     // Jumping
     private bool jumpFlag = false;
@@ -180,12 +180,17 @@ public class PlayerController : MonoBehaviour
     
     private void Movement() {
         RaycastHit hit;
+        Vector3 castOrigin = controlledPawn.transform.position + pawnController.center;
+        float castRadius = pawnController.height / 2;
+        Vector3 castDirection = controlledPawn.transform.forward;
+
         // Move to cover position if sneaking and close enough to object
-        if(isSneaking && !isUndercover && Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out hit, coverDistance, LayerMask.GetMask("Terrain"))) {
+        if(isSneaking && !isUndercover && 
+            Physics.SphereCast(castOrigin, castRadius, castDirection, out hit, coverDistance)) {
             GameObject targetObject = hit.transform.gameObject;
             if(targetObject != null) {
                 targetSplineContainer = targetObject.GetComponentInChildren<SplineContainer>();
-                Spline target = targetSplineContainer.Spline;
+                Spline target = targetSplineContainer ? targetSplineContainer.Spline : null;
                 if(target != null) {
                     using var native = new NativeSpline(target, targetSplineContainer.transform.localToWorldMatrix);
                     SplineUtility.GetNearestPoint(native, controlledPawn.transform.position, out float3 coverPosition, out float splinePercentage);
@@ -200,24 +205,23 @@ public class PlayerController : MonoBehaviour
                     Vector3 upDirection = SplineUtility.EvaluateUpVector(native, splinePercentage);
                     controlledPawn.transform.rotation = Quaternion.LookRotation(tangent, upDirection);
                     resetPosition = controlledPawn.transform.position;
-                } 
-            } else {
-                resetPosition = controlledPawn.transform.position;
-                Vector3 coverPosition = hit.point;
-                coverPosition.y = controlledPawn.transform.position.y;
-                /*
-                // Get size of model to compute (position of cover - size of model)
-                Vector3 coverOffset = controlledPawn.GetComponent<Renderer>().bounds.extents;
-                coverPosition.x -= coverOffset.x;
-                */
-                coverPosition.x -= 0.5f;
-                coverObj = hit.transform.gameObject;
-                TeleportPlayer(coverPosition);
-                isUndercover = true;
-                Vector3 directionVector = hit.normal;
-                directionVector = Quaternion.AngleAxis(90, Vector3.up) * directionVector;
-                controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
-                cover = coverType.Dynamic;
+                } else {
+                    resetPosition = controlledPawn.transform.position;
+                    Vector3 coverPosition = hit.point;
+                    coverPosition.y = controlledPawn.transform.position.y;
+                    /*
+                    // Get size of model to compute (position of cover - size of model)
+                    Vector3 coverOffset = controlledPawn.GetComponent<Renderer>().bounds.extents;
+                    coverPosition.x -= coverOffset.x;
+                    */
+                    coverPosition.x -= 0.5f;
+                    coverObj = targetObject;
+                    TeleportPlayer(coverPosition);
+                    isUndercover = true;
+                    Vector3 directionVector = hit.normal;
+                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                    cover = coverType.Dynamic;
+                }
             }
         }
 
