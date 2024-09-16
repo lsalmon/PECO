@@ -199,15 +199,15 @@ public class PlayerController : MonoBehaviour
                     TeleportPlayer(coverPosition);
                     isUndercover = true;
                     cover = coverType.Spline;
-                    currentOffsetSpline = 0f;
+                    currentOffsetSpline = splinePercentage;
                     // Compute direction from up vector
                     var tangent = SplineUtility.EvaluateTangent(native, splinePercentage);
                     Vector3 upDirection = SplineUtility.EvaluateUpVector(native, splinePercentage);
                     controlledPawn.transform.rotation = Quaternion.LookRotation(tangent, upDirection);
-                    resetPosition = controlledPawn.transform.position;
                 } else {
-                    resetPosition = controlledPawn.transform.position;
                     Vector3 coverPosition = hit.point;
+                    Vector3 directionVector = hit.normal;
+                    coverPosition += directionVector;
                     coverPosition.y = controlledPawn.transform.position.y;
                     /*
                     // Get size of model to compute (position of cover - size of model)
@@ -218,10 +218,10 @@ public class PlayerController : MonoBehaviour
                     coverObj = targetObject;
                     TeleportPlayer(coverPosition);
                     isUndercover = true;
-                    Vector3 directionVector = hit.normal;
                     controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
                     cover = coverType.Dynamic;
                 }
+                resetPosition = controlledPawn.transform.position;
             }
         }
 
@@ -289,6 +289,7 @@ public class PlayerController : MonoBehaviour
                     pawnController.Move(moveCover);
                 }
             }
+            resetPosition = controlledPawn.transform.position + (0.5f * Mathf.Sign(horizontal) * controlledPawn.transform.right);
         } else {
             // Convert inputs
             moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(horizontal, 0, vertical)) * formData.walkSpeed * speedMultiplier);
