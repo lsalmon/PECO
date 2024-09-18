@@ -9,7 +9,7 @@ using Unity.Mathematics;
 public class PlayerController : MonoBehaviour
 {
     public enum Form { Test, Human, Bear };
-    private enum coverType { Dynamic, Spline };
+    public enum coverType { Dynamic, Spline };
 
     public static PlayerController pc;
 
@@ -42,14 +42,15 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool isSneaking;
     [HideInInspector] public bool isUndercover;
     private GameObject coverObj;
-    private Vector3 resetPosition;
+    private SplineContainer targetSplineContainer;
+    private float currentOffsetSpline;
+    public coverType cover;
+    public Vector3 resetPosition;
+    public Vector3 currentNormal;
 
     // Input variables 
     private const float baseSpeed = 12.0f;
-    private coverType cover;
     private float splinePercentage;
-    private SplineContainer targetSplineContainer;
-    private float currentOffsetSpline;
     public float speed = baseSpeed;
     public float turnSpeed = 2f;
     Vector3 moveDirection;
@@ -203,11 +204,13 @@ public class PlayerController : MonoBehaviour
                     // Compute direction from up vector
                     var tangent = SplineUtility.EvaluateTangent(native, splinePercentage);
                     Vector3 upDirection = SplineUtility.EvaluateUpVector(native, splinePercentage);
+                    currentNormal = Vector3.Normalize(Vector3.Cross(tangent, upDirection));
+
                     controlledPawn.transform.rotation = Quaternion.LookRotation(tangent, upDirection);
                 } else {
                     Vector3 coverPosition = hit.point;
-                    Vector3 directionVector = hit.normal;
-                    coverPosition += directionVector;
+                    currentNormal = hit.normal;
+                    coverPosition += currentNormal;
                     coverPosition.y = controlledPawn.transform.position.y;
                     /*
                     // Get size of model to compute (position of cover - size of model)
@@ -218,7 +221,7 @@ public class PlayerController : MonoBehaviour
                     coverObj = targetObject;
                     TeleportPlayer(coverPosition);
                     isUndercover = true;
-                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, currentNormal);
                     cover = coverType.Dynamic;
                 }
                 resetPosition = controlledPawn.transform.position;
@@ -241,7 +244,9 @@ public class PlayerController : MonoBehaviour
                 if (Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
                     Vector3 directionVector = checkHit.normal;
                     directionVector = Quaternion.AngleAxis(90 * Mathf.Sign(horizontal), Vector3.up) * directionVector;
-                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
+                    controlledPawn.transform.rotation = Quaternion.Euler(directionVector.x, directionVector.y, directionVector.z);//Quaternion.FromToRotation(Vector3.forward, directionVector);
+
+                    currentNormal = directionVector;
                 }
 
                 Vector3 moveCover = horizontal * formData.walkSpeed * speedMultiplier * Vector3.left;
@@ -279,6 +284,8 @@ public class PlayerController : MonoBehaviour
                     // Compute direction from up vector and tangent
                     var tangent = SplineUtility.EvaluateTangent(target, currentOffsetSpline);
                     Vector3 upDirection = SplineUtility.EvaluateUpVector(target, currentOffsetSpline);
+                    currentNormal = Vector3.Normalize(Vector3.Cross(tangent, upDirection));
+
                     Quaternion lookRotation = Quaternion.LookRotation(tangent, upDirection);
                     if(horizontal < 0f) {
                         lookRotation *= Quaternion.AngleAxis(180f, Vector3.up);
@@ -289,7 +296,7 @@ public class PlayerController : MonoBehaviour
                     pawnController.Move(moveCover);
                 }
             }
-            resetPosition = controlledPawn.transform.position + (0.5f * Mathf.Sign(horizontal) * controlledPawn.transform.right);
+            resetPosition = controlledPawn.transform.position + (0.5f * currentNormal);
         } else {
             // Convert inputs
             moveNorm = Camera.main.transform.TransformVector(Vector3.Normalize(new Vector3(horizontal, 0, vertical)) * formData.walkSpeed * speedMultiplier);
