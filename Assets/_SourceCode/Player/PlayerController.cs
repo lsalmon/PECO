@@ -221,7 +221,8 @@ public class PlayerController : MonoBehaviour
                     coverObj = targetObject;
                     TeleportPlayer(coverPosition);
                     isUndercover = true;
-                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, currentNormal);
+                    Vector3 directionVector = Quaternion.AngleAxis(90, Vector3.up) * currentNormal;
+                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
                     cover = coverType.Dynamic;
                 }
                 resetPosition = controlledPawn.transform.position;
@@ -241,10 +242,13 @@ public class PlayerController : MonoBehaviour
         // Special movements when undercover
         if (isSneaking && isUndercover) {
             if(cover == coverType.Dynamic) {
-                if (Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit checkHit, coverDistance, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore)) {
-                    Vector3 directionVector = checkHit.normal;
+                float coverFollow = coverDistance*1.5f;
+                bool hitFront = Physics.Raycast(controlledPawn.transform.position, Vector3.forward, out RaycastHit checkHitF, coverFollow, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore);
+                bool hitBack = Physics.Raycast(controlledPawn.transform.position, Vector3.back, out RaycastHit checkHitB, coverFollow, LayerMask.GetMask("Terrain"), QueryTriggerInteraction.Ignore);
+                if((hitFront || hitBack) && horizontal != 0) {
+                    Vector3 directionVector = hitFront ? checkHitF.normal : checkHitB.normal;
                     directionVector = Quaternion.AngleAxis(90 * Mathf.Sign(horizontal), Vector3.up) * directionVector;
-                    controlledPawn.transform.rotation = Quaternion.Euler(directionVector.x, directionVector.y, directionVector.z);//Quaternion.FromToRotation(Vector3.forward, directionVector);
+                    controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
 
                     currentNormal = directionVector;
                 }
