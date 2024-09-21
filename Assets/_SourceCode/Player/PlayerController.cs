@@ -178,7 +178,7 @@ public class PlayerController : MonoBehaviour
         if(canAct)
             Movement();
     }
-    
+
     private void Movement() {
         RaycastHit hit;
         Vector3 castOrigin = controlledPawn.transform.position + pawnController.center;
@@ -237,6 +237,12 @@ public class PlayerController : MonoBehaviour
         if (isSneaking && isUndercover && vertical < 0) {
             isUndercover = false;
             TeleportPlayer(resetPosition);
+            // Rotate player to face normal vector (face away from spline)
+            controlledPawn.transform.rotation = Quaternion.LookRotation(currentNormal, Vector3.up);
+            CameraController cameraControl = (CameraController) Camera.main.GetComponent(typeof(CameraController));
+            Vector3 playerRotation = controlledPawn.transform.eulerAngles;
+            cameraControl.PlayerExitCover(playerRotation);
+            return;
         }
 
         // Special movements when undercover

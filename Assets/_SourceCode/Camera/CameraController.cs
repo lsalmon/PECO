@@ -11,6 +11,7 @@ public class CameraController : MonoBehaviour {
     private Vector3 cameraDir = Vector3.forward;
     private Vector3 posOffset, newPos;
     private float angle, distance;
+    private bool cameraForceStationary = false;
 
     // Wall collision detection
     private bool inWall;
@@ -36,21 +37,31 @@ public class CameraController : MonoBehaviour {
         targetPos = CameraTargetPos.target.GetComponent<CameraTargetPos>();
     }
 
+    public void PlayerExitCover(Vector3 playerRotation) {
+        // Rotate Camera to face the player
+        angle = 180f + playerRotation.y;
+        cameraForceStationary = true;
+    }
+
     private void LateUpdate() {
         if(PlayerController.pc.canAct) {
             // Detect if player's controlled pawn changed, and reset reference if so
-            if(player != PlayerController.pc.controlledPawn)
+            if(player != PlayerController.pc.controlledPawn) {
                 player = PlayerController.pc.controlledPawn;
+            }
 
             // If player is undercover, camera is fixed 
             if(PlayerController.pc.isUndercover && PlayerController.pc.cover == PlayerController.coverType.Spline) {
                 transform.position = PlayerController.pc.resetPosition + (PlayerController.pc.currentNormal * horizOffset);
-
-                //transform.position += (PlayerController.pc.currentNormal * horizOffset); 
                 transform.LookAt(player.transform);
             } else {
                 // Convert input into rotation
-                angle += Input.GetAxis("CameraX") * rotateSpeed;
+                // When exiting cover, the angle is fixed until the mouse moves again
+                if(cameraForceStationary && Input.GetAxis("CameraX") != 0) {
+                    cameraForceStationary = false;
+                } else {
+                    angle += Input.GetAxis("CameraX") * rotateSpeed;
+                }
                 if(angle > 360f)
                     angle -= 360f;
                 else if(angle < 0f)
