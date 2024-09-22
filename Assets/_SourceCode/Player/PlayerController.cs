@@ -10,6 +10,7 @@ public class PlayerController : MonoBehaviour
 {
     public enum Form { Test, Human, Bear };
     public enum coverType { Dynamic, Spline };
+    public enum peekingUnderCoverType { None, SideLeft, SideRight, Up };
 
     public static PlayerController pc;
 
@@ -45,6 +46,7 @@ public class PlayerController : MonoBehaviour
     private SplineContainer targetSplineContainer;
     private float currentOffsetSpline;
     public coverType cover;
+    public peekingUnderCoverType undercoverPeeking = peekingUnderCoverType.None;
     public Vector3 resetPosition;
     public Vector3 currentNormal;
 
@@ -241,6 +243,7 @@ public class PlayerController : MonoBehaviour
         // If player is moving away from the cover we un-cover it
         if (isSneaking && isUndercover && vertical < 0) {
             isUndercover = false;
+            undercoverPeeking = peekingUnderCoverType.None;
             TeleportPlayer(resetPosition);
             // Rotate player to face normal vector (face away from spline)
             controlledPawn.transform.rotation = Quaternion.LookRotation(currentNormal, Vector3.up);
@@ -289,6 +292,23 @@ public class PlayerController : MonoBehaviour
                             currentOffsetSpline = 1f;
                         }
                     }
+
+                    // Default : no panning
+                    undercoverPeeking = peekingUnderCoverType.None;
+
+                    // Tell camera to start panning if player moves while at the end of spline
+                    if(!target.Closed) {
+                        if(currentOffsetSpline == 1f && horizontal > 0) {
+                            undercoverPeeking = peekingUnderCoverType.SideLeft;
+                        }
+                        if(currentOffsetSpline == 0f && horizontal < 0) {
+                            undercoverPeeking = peekingUnderCoverType.SideRight;
+                        }
+                    }
+                    // Tell camera to start panning up if player moves up (no need to be at the end of the spline)
+                    if(vertical > 0) {
+                        undercoverPeeking = peekingUnderCoverType.Up;
+                    } 
 
                     var nextPositionOnSplineLocal = SplineUtility.EvaluatePosition(target, currentOffsetSpline);
                     nextPositionOnSplineLocal.y = controlledPawn.transform.position.y;

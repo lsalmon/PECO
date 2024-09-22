@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 public class CameraController : MonoBehaviour {
@@ -12,6 +14,7 @@ public class CameraController : MonoBehaviour {
     private Vector3 posOffset, newPos;
     private float angle, distance;
     private bool cameraForceStationary = false;
+    private float panningSpeed = 1f;
 
     // Wall collision detection
     private bool inWall;
@@ -52,8 +55,28 @@ public class CameraController : MonoBehaviour {
 
             // If player is undercover, camera is fixed 
             if(PlayerController.pc.isUndercover && PlayerController.pc.cover == PlayerController.coverType.Spline) {
-                transform.position = PlayerController.pc.resetPosition + (PlayerController.pc.currentNormal * horizOffset);
-                transform.LookAt(player.transform);
+                Vector3 standardCameraPos = PlayerController.pc.resetPosition + (PlayerController.pc.currentNormal * horizOffset);
+                // Get player input to control panning 
+                float horizontal = Input.GetAxis("Horizontal");
+
+                // Camera panning while undercover
+                if(horizontal != 0 && PlayerController.pc.undercoverPeeking != PlayerController.peekingUnderCoverType.None) {
+                    Vector3 panningPos = Vector3.zero;
+                    if(PlayerController.pc.undercoverPeeking == PlayerController.peekingUnderCoverType.SideLeft) {
+                        panningPos = -PlayerController.pc.transform.right * Time.deltaTime * panningSpeed * Mathf.Abs(horizontal);
+                    } else if(PlayerController.pc.undercoverPeeking == PlayerController.peekingUnderCoverType.SideRight) {
+                        panningPos = PlayerController.pc.transform.right * Time.deltaTime * panningSpeed * Mathf.Abs(horizontal);
+                    }
+                    Vector3 offset = (transform.position + panningPos) - standardCameraPos;
+                    // Clamp panning
+                    if(Vector3.Magnitude(offset) < 1.5f) {
+                        transform.Translate(panningPos, transform);
+                    }
+                } else {
+                    // Base non-panning position (assumed entered before panning)
+                    transform.position = standardCameraPos;
+                    transform.LookAt(player.transform);
+                }
             } else {
                 // Convert input into rotation
                 // When exiting cover, the angle is fixed until the mouse moves again
