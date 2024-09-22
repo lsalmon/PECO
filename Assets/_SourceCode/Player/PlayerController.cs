@@ -179,7 +179,7 @@ public class PlayerController : MonoBehaviour
             Movement();
     }
 
-    private void Movement() {
+    private void checkCoverMovement() {
         RaycastHit hit;
         Vector3 castOrigin = controlledPawn.transform.position + pawnController.center;
         float castRadius = pawnController.height / 2;
@@ -228,6 +228,11 @@ public class PlayerController : MonoBehaviour
                 resetPosition = controlledPawn.transform.position;
             }
         }
+    }
+
+    private void Movement() {
+        // Check if player is undercover
+        checkCoverMovement();
 
         // Retrieve inputs
         float horizontal = Input.GetAxis("Horizontal");
