@@ -220,15 +220,33 @@ public class PlayerController : MonoBehaviour
                     coverPosition.x -= coverOffset.x;
                     */
                     coverPosition.x -= 0.5f;
-                    coverObj = targetObject;
                     TeleportPlayer(coverPosition);
                     isUndercover = true;
                     Vector3 directionVector = Quaternion.AngleAxis(90, Vector3.up) * currentNormal;
                     controlledPawn.transform.rotation = Quaternion.FromToRotation(Vector3.forward, directionVector);
                     cover = coverType.Dynamic;
                 }
+                coverObj = targetObject;
                 resetPosition = controlledPawn.transform.position;
             }
+        }
+    }
+
+    private bool checkCoverHeight() {
+        if(!coverObj) {
+            return false;
+        }
+
+        MeshRenderer renderer = coverObj.GetComponentInChildren<MeshRenderer>();
+        if(!renderer) {
+            return false;
+        }
+        Vector3 size = renderer.bounds.size;
+
+        if(size.y - pawnController.height < 1) {
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -273,62 +291,67 @@ public class PlayerController : MonoBehaviour
                 pawnController.Move(moveCover * Time.fixedDeltaTime);
             } else {
                 Spline target = targetSplineContainer.Spline;
-                if(target != null && horizontal != 0f) {
-                    var splineLength = target.GetLength();
-                    // Compute next position relative to the spline
-                    currentOffsetSpline = (currentOffsetSpline + (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength);
-                    // If closed spline, go back to the beginning of the spline once we reach the end
-                    if(currentOffsetSpline < 0f) {
-                        if(target.Closed) {
-                            currentOffsetSpline = 1f;
-                        } else {
-                            currentOffsetSpline = 0f;
-                        }
-                    }
-                    if(currentOffsetSpline > 1f) {
-                        if(target.Closed) {
-                            currentOffsetSpline = 0f;
-                        } else {
-                            currentOffsetSpline = 1f;
-                        }
-                    }
-
+                if(target != null) { 
                     // Default : no panning
                     undercoverPeeking = peekingUnderCoverType.None;
 
-                    // Tell camera to start panning if player moves while at the end of spline
-                    if(!target.Closed) {
-                        if(currentOffsetSpline == 1f && horizontal > 0) {
-                            undercoverPeeking = peekingUnderCoverType.SideLeft;
+                    if(horizontal != 0f) {
+                        var splineLength = target.GetLength();
+                        // Compute next position relative to the spline
+                        currentOffsetSpline = (currentOffsetSpline + (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength);
+                        // If closed spline, go back to the beginning of the spline once we reach the end
+                        if(currentOffsetSpline < 0f) {
+                            if(target.Closed) {
+                                currentOffsetSpline = 1f;
+                            } else {
+                                currentOffsetSpline = 0f;
+                            }
                         }
-                        if(currentOffsetSpline == 0f && horizontal < 0) {
-                            undercoverPeeking = peekingUnderCoverType.SideRight;
+                        if(currentOffsetSpline > 1f) {
+                            if(target.Closed) {
+                                currentOffsetSpline = 0f;
+                            } else {
+                                currentOffsetSpline = 1f;
+                            }
                         }
+
+                        // Tell camera to start panning if player moves while at the end of spline
+                        if(!target.Closed) {
+                            if(currentOffsetSpline == 1f && horizontal > 0) {
+                                undercoverPeeking = peekingUnderCoverType.SideLeft;
+                            }
+                            if(currentOffsetSpline == 0f && horizontal < 0) {
+                                undercoverPeeking = peekingUnderCoverType.SideRight;
+                            }
+                        }
+
+                        var nextPositionOnSplineLocal = SplineUtility.EvaluatePosition(target, currentOffsetSpline);
+                        nextPositionOnSplineLocal.y = controlledPawn.transform.position.y;
+                        var nextPositionWorld = targetSplineContainer.transform.TransformPoint(nextPositionOnSplineLocal);
+                        nextPositionWorld.y = controlledPawn.transform.position.y;
+                        Vector3 moveCover = nextPositionWorld - controlledPawn.transform.position;
+
+                        // Compute direction from up vector and tangent
+                        var tangent = SplineUtility.EvaluateTangent(target, currentOffsetSpline);
+                        Vector3 upDirection = SplineUtility.EvaluateUpVector(target, currentOffsetSpline);
+                        currentNormal = Vector3.Normalize(Vector3.Cross(tangent, upDirection));
+
+                        Quaternion lookRotation = Quaternion.LookRotation(tangent, upDirection);
+                        if(horizontal < 0f) {
+                            lookRotation *= Quaternion.AngleAxis(180f, Vector3.up);
+                        }
+                        controlledPawn.transform.rotation = lookRotation;
+
+                        // Apply movement
+                        pawnController.Move(moveCover);
                     }
-                    // Tell camera to start panning up if player moves up (no need to be at the end of the spline)
-                    if(vertical > 0) {
+
+                    // Tell camera to start panning up if player moves up but not left or right
+                    // (no need to be at the end of the spline)
+                    // And object is short enough
+                    if(horizontal == 0 && vertical > 0 && checkCoverHeight()) {
                         undercoverPeeking = peekingUnderCoverType.Up;
                     } 
-
-                    var nextPositionOnSplineLocal = SplineUtility.EvaluatePosition(target, currentOffsetSpline);
-                    nextPositionOnSplineLocal.y = controlledPawn.transform.position.y;
-                    var nextPositionWorld = targetSplineContainer.transform.TransformPoint(nextPositionOnSplineLocal);
-                    nextPositionWorld.y = controlledPawn.transform.position.y;
-                    Vector3 moveCover = nextPositionWorld - controlledPawn.transform.position;
-
-                    // Compute direction from up vector and tangent
-                    var tangent = SplineUtility.EvaluateTangent(target, currentOffsetSpline);
-                    Vector3 upDirection = SplineUtility.EvaluateUpVector(target, currentOffsetSpline);
-                    currentNormal = Vector3.Normalize(Vector3.Cross(tangent, upDirection));
-
-                    Quaternion lookRotation = Quaternion.LookRotation(tangent, upDirection);
-                    if(horizontal < 0f) {
-                        lookRotation *= Quaternion.AngleAxis(180f, Vector3.up);
-                    }
-                    controlledPawn.transform.rotation = lookRotation;
-
-                    // Apply movement
-                    pawnController.Move(moveCover);
                 }
             }
             resetPosition = controlledPawn.transform.position + (0.5f * currentNormal);

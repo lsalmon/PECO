@@ -15,6 +15,7 @@ public class CameraController : MonoBehaviour {
     private float angle, distance;
     private bool cameraForceStationary = false;
     private float panningSpeed = 1f;
+    private float panningLimit = 1.5f;
 
     // Wall collision detection
     private bool inWall;
@@ -58,18 +59,22 @@ public class CameraController : MonoBehaviour {
                 Vector3 standardCameraPos = PlayerController.pc.resetPosition + (PlayerController.pc.currentNormal * horizOffset);
                 // Get player input to control panning 
                 float horizontal = Input.GetAxis("Horizontal");
+                float vertical = Input.GetAxis("Vertical");
 
                 // Camera panning while undercover
-                if(horizontal != 0 && PlayerController.pc.undercoverPeeking != PlayerController.peekingUnderCoverType.None) {
+                if(horizontal != 0 && PlayerController.pc.undercoverPeeking != PlayerController.peekingUnderCoverType.None
+                    || (vertical > 0 && PlayerController.pc.undercoverPeeking == PlayerController.peekingUnderCoverType.Up)) {
                     Vector3 panningPos = Vector3.zero;
                     if(PlayerController.pc.undercoverPeeking == PlayerController.peekingUnderCoverType.SideLeft) {
                         panningPos = -PlayerController.pc.transform.right * Time.deltaTime * panningSpeed * Mathf.Abs(horizontal);
                     } else if(PlayerController.pc.undercoverPeeking == PlayerController.peekingUnderCoverType.SideRight) {
                         panningPos = PlayerController.pc.transform.right * Time.deltaTime * panningSpeed * Mathf.Abs(horizontal);
+                    } else if(PlayerController.pc.undercoverPeeking == PlayerController.peekingUnderCoverType.Up) {
+                        panningPos = PlayerController.pc.transform.up * Time.deltaTime * panningSpeed * Mathf.Abs(vertical);
                     }
                     Vector3 offset = (transform.position + panningPos) - standardCameraPos;
                     // Clamp panning
-                    if(Vector3.Magnitude(offset) < 1.5f) {
+                    if(Vector3.Magnitude(offset) < panningLimit) {
                         transform.Translate(panningPos, transform);
                     }
                 } else {
