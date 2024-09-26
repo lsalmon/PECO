@@ -285,7 +285,7 @@ public class PlayerController : MonoBehaviour
                     currentNormal = directionVector;
                 }
 
-                Vector3 moveCover = horizontal * formData.walkSpeed * speedMultiplier * Vector3.left;
+                Vector3 moveCover = horizontal * formData.walkSpeed * speedMultiplier * Vector3.right;
 
                 // Apply movement
                 pawnController.Move(moveCover * Time.fixedDeltaTime);
@@ -298,7 +298,7 @@ public class PlayerController : MonoBehaviour
                     if(horizontal != 0f) {
                         var splineLength = target.GetLength();
                         // Compute next position relative to the spline
-                        currentOffsetSpline = (currentOffsetSpline + (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength);
+                        currentOffsetSpline = (currentOffsetSpline - (horizontal * formData.walkSpeed * speedMultiplier) * Time.fixedDeltaTime / splineLength);
                         // If closed spline, go back to the beginning of the spline once we reach the end
                         if(currentOffsetSpline < 0f) {
                             if(target.Closed) {
@@ -317,10 +317,10 @@ public class PlayerController : MonoBehaviour
 
                         // Tell camera to start panning if player moves while at the end of spline
                         if(!target.Closed) {
-                            if(currentOffsetSpline == 1f && horizontal > 0) {
+                            if(currentOffsetSpline == 1f && horizontal < 0) {
                                 undercoverPeeking = peekingUnderCoverType.SideLeft;
                             }
-                            if(currentOffsetSpline == 0f && horizontal < 0) {
+                            if(currentOffsetSpline == 0f && horizontal > 0) {
                                 undercoverPeeking = peekingUnderCoverType.SideRight;
                             }
                         }
@@ -337,7 +337,7 @@ public class PlayerController : MonoBehaviour
                         currentNormal = Vector3.Normalize(Vector3.Cross(tangent, upDirection));
 
                         Quaternion lookRotation = Quaternion.LookRotation(tangent, upDirection);
-                        if(horizontal < 0f) {
+                        if(horizontal > 0f) {
                             lookRotation *= Quaternion.AngleAxis(180f, Vector3.up);
                         }
                         controlledPawn.transform.rotation = lookRotation;
