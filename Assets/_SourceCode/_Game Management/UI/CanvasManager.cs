@@ -7,7 +7,7 @@ public class CanvasManager : MonoBehaviour {
 
     public static CanvasManager cm;
 
-    public GameObject pauseMenu, stealthGradient, costumeRemoveBar, healthBar;
+    public GameObject pauseMenu, stealthGradient, costumeRemoveBar, healthBar, haystackHideIcon, haystackCircularMeter;
     public Sprite fullHeart, emptyHeart;
 
     [HideInInspector] public List<Image> healthSprites;
@@ -20,6 +20,8 @@ public class CanvasManager : MonoBehaviour {
             Destroy(gameObject);
         pauseMenu.SetActive(false);
         stealthGradient.SetActive(false);
+        haystackHideIcon.SetActive(false);
+        haystackCircularMeter.SetActive(false);
         foreach(Transform child in healthBar.transform)
             healthSprites.Add(child.GetComponent<Image>());
     }

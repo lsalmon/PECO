@@ -149,6 +149,13 @@ public class PlayerController : MonoBehaviour
                 CanvasManager.cm.stealthGradient.SetActive(false);
             }
         }
+        
+        // Show slider and icon if special stealth object nearby
+        if(playerColls.haystackNearby && currentForm == Form.Human) {
+            CanvasManager.cm.haystackCircularMeter.SetActive(true);
+        } else if(!playerColls.haystackNearby) {
+            CanvasManager.cm.haystackCircularMeter.SetActive(false);
+        }
     }
 
     private void LateUpdate() {

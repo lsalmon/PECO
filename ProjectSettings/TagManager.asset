@@ -11,6 +11,7 @@ TagManager:
   - PlayerAttack
   - Enemy
   - CostumeGiver
+  - HayStack
   layers:
   - Default
   - TransparentFX
