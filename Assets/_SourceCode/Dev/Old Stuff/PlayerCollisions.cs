@@ -6,6 +6,7 @@ public class PlayerCollisions : MonoBehaviour {
 
     [HideInInspector] public Vector3 hitNormal;
     [HideInInspector] public bool haystackNearby = false;
+    [HideInInspector] public GameObject haystack = null;
 
     private void OnControllerColliderHit(ControllerColliderHit hit) {
         hitNormal = hit.normal;
@@ -15,14 +16,14 @@ public class PlayerCollisions : MonoBehaviour {
     // Detecting bush cover objects
     private void OnTriggerEnter(Collider coll) {
         if(coll.CompareTag("HayStack")) {
-            Debug.Log("=====> Entered haystack collider");
             haystackNearby = true;
+            haystack = coll.gameObject;
         }
     }
     private void OnTriggerExit(Collider coll) {
         if(coll.CompareTag("HayStack")) {
-            Debug.Log("=====> Exited haystack collider");
             haystackNearby = false;
+            haystack = null;
         }
     }
 }

@@ -42,6 +42,7 @@ public class PlayerController : MonoBehaviour
     // Stealth functionality
     [HideInInspector] public bool isSneaking;
     [HideInInspector] public bool isUndercover;
+    [HideInInspector] public bool isInHaystack;
     private GameObject coverObj;
     private SplineContainer targetSplineContainer;
     private float currentOffsetSpline;
@@ -79,6 +80,7 @@ public class PlayerController : MonoBehaviour
         canAct = true;
         isUndercover = false;
         isSneaking = false;
+        isInHaystack = false;
 
         // set controlledPawn
         /*if(controlledPawn == null) {
@@ -138,7 +140,7 @@ public class PlayerController : MonoBehaviour
         }
 
         // Stealth
-        if(Input.GetButtonDown("Sneak")) {
+        if(Input.GetButtonDown("Sneak") && currentForm != Form.Human && !playerColls.haystackNearby) {
             isSneaking = !isSneaking;
             if(isSneaking) {
                 speedMultiplier = 0.5f;
@@ -151,10 +153,22 @@ public class PlayerController : MonoBehaviour
         }
         
         // Show slider and icon if special stealth object nearby
-        if(playerColls.haystackNearby && currentForm == Form.Human) {
+        if(playerColls.haystackNearby && currentForm == Form.Human && !isInHaystack) {
             CanvasManager.cm.haystackCircularMeter.SetActive(true);
-        } else if(!playerColls.haystackNearby) {
+            CanvasManager.cm.haystackHideIcon.SetActive(true);
+        } else {
             CanvasManager.cm.haystackCircularMeter.SetActive(false);
+            CanvasManager.cm.haystackHideIcon.SetActive(false);
+        }
+
+        // Getting out of haystack
+        if(isInHaystack && (Input.GetButtonDown("AttackStandard") || Input.GetButtonDown("AttackScissor") || Input.GetButtonDown("Jump"))) {
+            isInHaystack = false;
+            isSneaking = false;
+            isUndercover = false;
+            speedMultiplier = 1f;
+            CanvasManager.cm.stealthGradient.SetActive(false);
+            jumpOutOfHaystack();
         }
     }
 
@@ -239,6 +253,31 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public void jumpIntoHaystack() {
+        if(playerColls && playerColls.haystack) {
+            Renderer r = playerColls.haystack.GetComponent<Renderer>();
+            if(r) {
+                TeleportPlayer(r.bounds.center);
+                isInHaystack = true;
+                // TODO : handle camera while inside haystack and rotate player around accordingly
+            }
+        }
+    }
+
+    public void jumpOutOfHaystack() {
+        // TODO : Handle case of attack, jump, sneak etc
+        // Compute outside position
+        float outwardMagnitude = 5;
+        Vector3 positionOut = controlledPawn.transform.position;
+        Renderer r = playerColls.haystack.GetComponent<Renderer>();
+        if(r) {
+            outwardMagnitude = r.bounds.extents.magnitude - 1;
+        }
+        positionOut += outwardMagnitude*Vector3.forward;
+        // TODO : Teleporting does not call OnTriggerExit on PlayerCollisions, call pawnController.Move
+        TeleportPlayer(positionOut);
+    }
+
     private bool checkCoverHeight() {
         if(!coverObj) {
             return false;
@@ -258,6 +297,11 @@ public class PlayerController : MonoBehaviour
     }
 
     private void Movement() {
+        // Haystack cover special cases, no move
+        if(isInHaystack) {
+            return;
+        }
+
         // Check if player is undercover
         checkCoverMovement();
 

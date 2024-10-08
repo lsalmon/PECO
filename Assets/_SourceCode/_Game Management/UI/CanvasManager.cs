@@ -7,7 +7,7 @@ public class CanvasManager : MonoBehaviour {
 
     public static CanvasManager cm;
 
-    public GameObject pauseMenu, stealthGradient, costumeRemoveBar, healthBar, haystackHideIcon, haystackCircularMeter;
+    public GameObject pauseMenu, stealthGradient, costumeRemoveBar, healthBar, haystackCircularMeter, haystackHideIcon;
     public Sprite fullHeart, emptyHeart;
 
     [HideInInspector] public List<Image> healthSprites;
