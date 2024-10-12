@@ -12,7 +12,7 @@ public class CameraController : MonoBehaviour {
     public float horizOffset, verticalOffset;
     private Vector3 cameraDir = Vector3.forward;
     private Vector3 posOffset, newPos;
-    private float angle, distance;
+    private float angleX, angleY, distance;
     private bool cameraForceStationary = false;
     private float panningSpeed = 1f;
     private float panningLimit = 1.5f;
@@ -43,7 +43,7 @@ public class CameraController : MonoBehaviour {
 
     public void PlayerExitCover(Vector3 playerRotation) {
         // Rotate Camera to face the player
-        angle = 180f + playerRotation.y;
+        angleX = 180f + playerRotation.y;
         cameraForceStationary = true;
     }
 
@@ -82,23 +82,39 @@ public class CameraController : MonoBehaviour {
                     transform.position = standardCameraPos;
                     transform.LookAt(player.transform);
                 }
+            // Case of the haystack, 360° camera 
+            } else if(PlayerController.pc.isInHaystack) {
+                transform.position = player.transform.position;
+                angleX += Input.GetAxis("CameraX") * rotateSpeed;
+                if(angleX > 360f) {
+                    angleX = 0f;
+                }
+                angleY += Input.GetAxis("CameraY") * rotateSpeed;
+                if(angleY > 90f) {
+                    angleY = 90f;
+                }
+                if(angleY < -85f) {
+                    angleY = -85f;
+                }
+
+                transform.rotation = Quaternion.Euler(-angleY, angleX, 0);
             } else {
                 // Convert input into rotation
                 // When exiting cover, the angle is fixed until the mouse moves again
                 if(cameraForceStationary && Input.GetAxis("CameraX") != 0) {
                     cameraForceStationary = false;
                 } else {
-                    angle += Input.GetAxis("CameraX") * rotateSpeed;
+                    angleX += Input.GetAxis("CameraX") * rotateSpeed;
                 }
-                if(angle > 360f)
-                    angle -= 360f;
-                else if(angle < 0f)
-                    angle += 360f;
-                cameraDir = new Vector3(Mathf.Sin(angle * Mathf.Deg2Rad), 0f, Mathf.Cos(angle * Mathf.Deg2Rad));
+                if(angleX > 360f)
+                    angleX -= 360f;
+                else if(angleX < 0f)
+                    angleX += 360f;
+                cameraDir = new Vector3(Mathf.Sin(angleX * Mathf.Deg2Rad), 0f, Mathf.Cos(angleX * Mathf.Deg2Rad));
 
                 // Calculate position
                 targetPos.transform.position = newPos + transform.TransformVector(targetOffset);
-                targetPos.transform.rotation = Quaternion.Euler(5, angle, 0);
+                targetPos.transform.rotation = Quaternion.Euler(5, angleX, 0);
                 posOffset = Vector3.Normalize(cameraDir) * -horizOffset;
                 posOffset.y = verticalOffset;
                 newPos = player.transform.position + posOffset;
@@ -126,7 +142,7 @@ public class CameraController : MonoBehaviour {
                             setPos = newPos + transform.TransformVector(Vector3.left) * targetPos.rightDist;
                         } else {
                             transform.position = newPos;
-                            transform.rotation = Quaternion.Euler(5, angle, 0);
+                            transform.rotation = Quaternion.Euler(5, angleX, 0);
                             return;
                         }
                     }
@@ -134,7 +150,7 @@ public class CameraController : MonoBehaviour {
 
                 // Apply offset position
                 transform.position = setPos;
-                transform.rotation = Quaternion.Euler(5, angle, 0);
+                transform.rotation = Quaternion.Euler(5, angleX, 0);
             }
         }
     }

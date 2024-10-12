@@ -257,9 +257,12 @@ public class PlayerController : MonoBehaviour
         if(playerColls && playerColls.haystack) {
             Renderer r = playerColls.haystack.GetComponent<Renderer>();
             if(r) {
+                // TODO : not transparent ?
+                Color c = r.material.color;
+                c.a = 0.9f;
+                r.material.color = c;
                 TeleportPlayer(r.bounds.center);
                 isInHaystack = true;
-                // TODO : handle camera while inside haystack and rotate player around accordingly
             }
         }
     }
@@ -271,10 +274,15 @@ public class PlayerController : MonoBehaviour
         Vector3 positionOut = controlledPawn.transform.position;
         Renderer r = playerColls.haystack.GetComponent<Renderer>();
         if(r) {
-            outwardMagnitude = r.bounds.extents.magnitude - 1;
+            Color c = r.material.color;
+            c.a = 0.0f;
+            r.material.color = c;
+            outwardMagnitude = r.bounds.extents.magnitude + 1;
         }
         positionOut += outwardMagnitude*Vector3.forward;
         // TODO : Teleporting does not call OnTriggerExit on PlayerCollisions, call pawnController.Move
+        playerColls.haystackNearby = false;
+        playerColls.haystack = null;
         TeleportPlayer(positionOut);
     }
 
@@ -299,6 +307,8 @@ public class PlayerController : MonoBehaviour
     private void Movement() {
         // Haystack cover special cases, no move
         if(isInHaystack) {
+            // Match camera rotation
+            controlledPawn.transform.rotation = Quaternion.Euler(0, Camera.main.transform.rotation.eulerAngles.y, 0);
             return;
         }
 
