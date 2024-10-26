@@ -59,8 +59,9 @@ public class BehaviorBase : MonoBehaviour {
     public virtual void OnSuspicious() {
         detectedState = DetectedMode.Suspicious;
         detFlag = false;
-        if(!susFlag)
+        if(!susFlag) {
             OnFirstSuspicious();
+        }
     }
 
     /// <summary>
@@ -86,6 +87,7 @@ public class BehaviorBase : MonoBehaviour {
     /// </summary>
     public virtual IEnumerator DisplayText(string newText, float time = 1f) {
         float timer = 0;
+        text = transform.GetComponentInChildren<RectTransform>(true).gameObject;
         Text tText = text.GetComponent<Text>();
         tText.text = newText;
         text.SetActive(true);
@@ -105,6 +107,13 @@ public class BehaviorBase : MonoBehaviour {
         Vector3 camera = Camera.main.transform.position;
         camera.y = 0;
         text.GetComponent<RectTransform>().LookAt(camera);
+    }
+
+    /// <summary>
+    /// Called once when the player is close enough and makes noise
+    /// </summary>
+    public virtual void GoToNoise(Vector3 noisePosition) {
+        OnFirstSuspicious();
     }
 
     public virtual bool WithinAttackRange() {

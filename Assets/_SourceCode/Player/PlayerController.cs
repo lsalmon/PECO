@@ -6,6 +6,11 @@ using UnityEngine;
 using UnityEngine.Splines;
 using Unity.Mathematics;
 
+public interface IListenToNoise
+{
+    void OnPlayerMakesNoise(Vector3 position);
+}
+
 public class PlayerController : MonoBehaviour
 {
     public enum Form { Test, Human, Bear };
@@ -159,6 +164,16 @@ public class PlayerController : MonoBehaviour
         } else {
             CanvasManager.cm.haystackCircularMeter.SetActive(false);
             CanvasManager.cm.haystackHideIcon.SetActive(false);
+        }
+
+        // Making noise from inside the haystack
+        if(isInHaystack && Input.GetButtonDown("Sneak")) {
+            IListenToNoise[] enemies = FindObjectsOfType<MonoBehaviour>().OfType<IListenToNoise>().ToArray();
+            foreach (var enemy in enemies) {
+                if(enemy != null) {
+                    enemy.OnPlayerMakesNoise(controlledPawn.transform.position);
+                }
+            }
         }
 
         // Getting out of haystack

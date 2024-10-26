@@ -9,25 +9,32 @@ public class PatrolBasic : BehaviorBase {
     public float waitTime, pauseTime, attackRange;
 
     private int currentPoint;
-    private bool waiting;
+    private bool waiting, investigating;
     private NavMeshAgent agent;
+    private InvestigateNoise noiseScript;
 
     protected override void Start() {
         base.Start();
         agent = GetComponent<NavMeshAgent>();
+        noiseScript = GetComponent<InvestigateNoise>();
         currentPoint = 0;
         agent.SetDestination(patrolPoints[0].position);
         waiting = false;
+        investigating = false;
         if(patrolPoints.Length == 0)
             Debug.Log("No patrol points set for " + gameObject.name);
     }
 
     public override void OnIdle() {
-        base.OnIdle();
-        if(detectedState != DetectedMode.Unaware)
-            agent.SetDestination(patrolPoints[currentPoint].position);
-        if(!waiting && AtDestination())
-            StartCoroutine(StartWait());
+        if(!investigating) {
+            base.OnIdle();
+            if(detectedState != DetectedMode.Unaware)
+                agent.SetDestination(patrolPoints[currentPoint].position);
+            if(!waiting && AtDestination())
+                StartCoroutine(StartWait());
+        } else {
+            noiseScript.OnIdle();
+        }
     }
 
     public override void OnFirstSuspicious() {
@@ -73,11 +80,13 @@ public class PatrolBasic : BehaviorBase {
     }
 
     protected IEnumerator StartWait() {
-        waiting = true;
-        yield return new WaitForSeconds(waitTime);
-        if(waiting) {
-            waiting = false;
-            NextDestination();
+        if(!investigating) {
+            waiting = true;
+            yield return new WaitForSeconds(waitTime);
+            if(waiting) {
+                waiting = false;
+                NextDestination();
+            }
         }
     }
 
@@ -91,6 +100,17 @@ public class PatrolBasic : BehaviorBase {
 
     public override bool WithinAttackRange() {
         return Vector3.Distance(transform.position, PlayerController.pc.controlledPawn.transform.position) <= attackRange;
+    }
+
+    public void InterruptPatrol() {
+        StopAllCoroutines();
+        investigating = true;
+    }
+
+    public void ReturnToPatrol() {
+        agent.stoppingDistance = 0.0f;
+        investigating = false;
+        StartCoroutine(StartWait());
     }
 
 }
