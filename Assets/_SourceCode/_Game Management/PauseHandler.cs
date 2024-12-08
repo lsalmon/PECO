@@ -19,13 +19,16 @@ public class PauseHandler : MonoBehaviour {
     }
 
     void Update() {
-        if (Input.GetButtonDown("Pause") && canPause) {
+        if (Input.GetButtonDown("Pause")) {
             PauseGame();
         }
         MouseLock();
     }
 
     public void PauseGame() {
+        if(!canPause) {
+            return;
+        }
         paused = !paused;
         try {
             pauseMenu.SetActive(paused);
