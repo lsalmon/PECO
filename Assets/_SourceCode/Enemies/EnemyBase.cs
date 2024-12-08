@@ -54,7 +54,7 @@ public class EnemyBase : MonoBehaviour {
             Vector3.Angle(transform.forward, player.transform.position - transform.position) <= viewRangeAngle / 2) {
             RaycastHit hit;
             if(Physics.Raycast(transform.position, player.transform.position - transform.position, out hit, viewRangeDistance, LayerMask.GetMask("Terrain", "Player"))) {
-                if(hit.collider.CompareTag("PlayerControllable")) {
+                if(hit.collider.CompareTag("PlayerControllable") && PlayerController.pc.currentForm != PlayerController.Form.Bear) {
                     //Debug.Log("player in field of view");
                     behavior.currentDetection += detectGain * Time.deltaTime;
                     behavior.lastKnownPlayerPos = player.transform.position;
